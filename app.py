@@ -42,8 +42,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🧠 Load data
+import zipfile
+import os
+import pickle
+
+# Unzip the file (only if not already unzipped)
+if not os.path.exists("similarity.pkl"):
+    with zipfile.ZipFile("similarity.zip", "r") as zip_ref:
+        zip_ref.extractall()
+
+# Now load the pickle file
+# Now load the pickle file
+with open("similarity.pkl", "rb") as f:
+    similarity = pickle.load(f)
+
 movies = pickle.load(open("movies_list.pkl", 'rb'))
-similarity = pickle.load(open("similarity.pkl", 'rb'))
+
 movies_list = movies['title'].values
 
 # 🔍 Poster fetcher
@@ -99,3 +113,4 @@ if st.button("Show Recommendations"):
                 st.markdown("**Trailer not available on YouTube.**")
                 st.markdown("[🔗 View more on TMDB](https://www.themoviedb.org/movie/{})".format(movies.iloc[i].id))
                 st.video("https://www.youtube.com/watch?v=3GwjfUFyY6M")  # Optional placeholder
+
