@@ -42,22 +42,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🧠 Load data
-import zipfile
-import os
-import pickle
-
-# Unzip the file (only if not already unzipped)
-if not os.path.exists("similarity.pkl"):
-    with zipfile.ZipFile("similarity.zip", "r") as zip_ref:
-        zip_ref.extractall()
-
-# Now load the pickle file
-# Now load the pickle file
-with open("similarity.pkl", "rb") as f:
-    similarity = pickle.load(f)
-
 movies = pickle.load(open("movies_list.pkl", 'rb'))
-
+similarity = pickle.load(open("similarity.pkl", 'rb'))
 movies_list = movies['title'].values
 
 # 🔍 Poster fetcher
@@ -66,9 +52,13 @@ def fetch_poster(movie_id):
     data = requests.get(url).json()
     poster_path = data.get('poster_path')
     if poster_path:
-        return "https://image.tmdb.org/t/p/w500/" + poster_path
+        poster_url = "https://image.tmdb.org/t/p/w500/" + poster_path
+        bg_url = "https://image.tmdb.org/t/p/original/" + poster_path
     else:
-        return "https://via.placeholder.com/500x750?text=No+Image"
+        poster_url = "https://via.placeholder.com/500x750?text=No+Image"
+        bg_url = ""
+    return poster_url, bg_url
+
 
 # 🎞️ Trailer fetcher
 def fetch_trailer(movie_id):
@@ -93,15 +83,38 @@ def recommend(movie):
     recommended_movies = []
     recommended_posters = []
     recommended_trailers = []
+    bg_url = ""
+
     for i in distances[1:6]:
         movie_id = movies.iloc[i[0]].id
-        recommended_movies.append(movies.iloc[i[0]].title)
-        recommended_posters.append(fetch_poster(movie_id))
-        recommended_trailers.append(fetch_trailer(movie_id))
-    return recommended_movies, recommended_posters, recommended_trailers
+        title = movies.iloc[i[0]].title
+        poster, bg = fetch_poster(movie_id)
+        trailer = fetch_trailer(movie_id)
+
+        recommended_movies.append(title)
+        recommended_posters.append(poster)
+        recommended_trailers.append(trailer)
+
+        if i == distances[1]:  # First recommendation's poster becomes background
+            bg_url = bg
+
+    return recommended_movies, recommended_posters, recommended_trailers, bg_url
 if st.button("Show Recommendations"):
-    names, posters, trailers = recommend(selected_movie)
-    cols = st.columns(5)  # ✅ Fixed here
+    names, posters, trailers, bg_url = recommend(selected_movie)
+
+    if bg_url:
+        st.markdown(f"""
+            <style>
+            .stApp {{
+                background-image: url("{bg_url}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+
+    cols = st.columns(5)
     for i in range(5):
         with cols[i]:
             st.text(names[i])
@@ -111,6 +124,3 @@ if st.button("Show Recommendations"):
                 st.video(trailers[i])
             else:
                 st.markdown("**Trailer not available on YouTube.**")
-                st.markdown("[🔗 View more on TMDB](https://www.themoviedb.org/movie/{})".format(movies.iloc[i].id))
-                st.video("https://www.youtube.com/watch?v=3GwjfUFyY6M")  # Optional placeholder
-
